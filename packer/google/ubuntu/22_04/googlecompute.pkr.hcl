@@ -18,7 +18,7 @@ variable "image_name" {
 
 variable "project_id" {
   type = string
-  default = "fe-cphillipson"
+  default = "pa-sasinghal"
 }
 
 variable "machine_type" {
