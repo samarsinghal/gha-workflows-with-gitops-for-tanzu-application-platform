@@ -35,7 +35,7 @@ jobs:
       GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       GOOGLE_APPLICATION_CREDENTIALS: "/tmp/gcloud/sa.json"
       TF_VAR_project: ${{ secrets.GOOGLE_PROJECT_ID }}
-      TF_VAR_location: "${{ inputs.region }}"
+      TF_VAR_location: "us"
     runs-on: ubuntu-22.04
 
     outputs:
