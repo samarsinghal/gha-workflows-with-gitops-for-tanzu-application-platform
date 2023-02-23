@@ -77,7 +77,7 @@ jobs:
     - name: Encode
       id: encode
       run: |
-          result="$(cat "scripts/install-package.sh" | base64 -w 0)"
+          result="$(cat scripts/install-package.sh | base64 -w 0)"
           echo "result=${result}" >> $GITHUB_OUTPUT
 
   install:
@@ -171,6 +171,22 @@ jobs:
           git_ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
           git_ssh_known_hosts: ${{ secrets.GIT_SSH_KNOWN_HOSTS }}
         result_path: ${{ env.GITOPS_DIR }}/.init/ingress-install-secrets.yml
+
+    - name: Render ingress-install
+      uses: chuhlomin/render-template@v1.6
+      with:
+        template: ${{ env.GITOPS_DIR }}/.install/ingress-install.tpl
+        vars: |
+          git_ref_name: ${{ github.ref_name }}
+        result_path: ${{ env.GITOPS_DIR }}/.install/ingress-install.yml
+
+    - name: Render ingress-post-install
+      uses: chuhlomin/render-template@v1.6
+      with:
+        template: ${{ env.GITOPS_DIR }}/.post-install/ingress-post-install.tpl
+        vars: |
+          git_ref_name: ${{ github.ref_name }}
+        result_path: ${{ env.GITOPS_DIR }}/.post-install/ingress-post-install.yml
 
     - name: "Install Tanzu Ingress on Azure"
       if: inputs.target-cloud == 'azure'

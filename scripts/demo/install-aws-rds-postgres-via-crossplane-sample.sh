@@ -14,10 +14,11 @@
 # * You will need permissive access to the TAP Kubernetes cluster with kubectl and Tanzu CLI tools
 
 APP_NAME="spring-petclinic"
-AWS_PROFILE="default"
+AWS_PROFILE="${1:-default}"
 AWS_VPC_NAME="service-instances"
 SERVICE_INSTANCE_NAMESPACE=${AWS_VPC_NAME}
 AWS_RDS_INSTANCE_NAME="rds-postres-db-1"
+DB_NAME=$(echo ${AWS_RDS_INSTANCE_NAME} | tr "-" "")
 AWS_RDS_INSTANCE_TYPE="db.t2.micro"
 AWS_RDS_POSTGRES_VERSION="12"
 AWS_REGION="us-west-2"
@@ -27,11 +28,15 @@ CROSSPLANE_PROVIDER_NAME="crossplane-provider-aws"
 CROSSPLANE_PROVIDER_VERSION=v0.36.1 # @see https://github.com/crossplane-contrib/provider-aws/releases for latest available version
 CROSSPLANE_PROVIDER_SECRET_NAME="aws-provider-creds"
 WORKLOAD_NAMESPACE="workloads"
+DEPLOY_WORKLOAD="false"
+INSTALL_CROSSPLANE="false"
 
 set -x
 
 # Create namespace to host all service instances
 kubectl create ns ${SERVICE_INSTANCE_NAMESPACE}
+
+if [ "true" == "$INSTALL_CROSSPLANE" ]; then
 
 # Create namespace to host Crossplane
 kubectl create ns ${CROSSPLANE_NAMESPACE}
@@ -53,8 +58,12 @@ kind: Provider
 metadata:
   name: ${CROSSPLANE_PROVIDER_NAME}
 spec:
-  package: xpkg.upbound.io/crossplane/provider-aws:${CROSSPLANE_PROVIDER_VERSION}
+  package: xpkg.upbound.io/crossplane-contrib/provider-aws:${CROSSPLANE_PROVIDER_VERSION}
 EOF
+
+# Wait for the provider to become healthy
+kubectl -n ${CROSSPLANE_NAMESPACE} wait provider/${CROSSPLANE_PROVIDER_NAME} \
+  --for=condition=Healthy=True --timeout=3m
 
 # See the health of the provider that was just installed
 kubectl get provider.pkg.crossplane.io ${CROSSPLANE_PROVIDER_NAME}
@@ -64,7 +73,7 @@ echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --
 cat creds.conf
 
 # Create secret
-kubectl create secret generic ${CROSSPLANE_PROVIDER_SECRET_NAME} -n ${CROSSPLANE_NAMESPACE} --from-file=creds=./creds.conf --wait=true
+kubectl create secret generic ${CROSSPLANE_PROVIDER_SECRET_NAME} -n ${CROSSPLANE_NAMESPACE} --from-file=creds=./creds.conf
 
 # Clean-up creds on file-system
 rm -f creds.conf
@@ -84,6 +93,9 @@ spec:
       name: ${CROSSPLANE_PROVIDER_SECRET_NAME}
       key: creds
 EOF
+
+fi
+
 
 # Define composite resource type w/ custom CompositeResourceDefinition (XRD)
 kubectl apply --wait=true -f -<<EOF
@@ -267,7 +279,7 @@ spec:
           forProvider:
             dbInstanceClass: ${AWS_RDS_INSTANCE_TYPE}
             engine: postgres
-            dbName: postgres
+            dbName: ${DB_NAME}
             engineVersion: "${AWS_RDS_POSTGRES_VERSION}"
             masterUsername: masteruser
             publiclyAccessible: true
@@ -300,24 +312,6 @@ spec:
         - fromFieldPath: spec.parameters.storageGB
           toFieldPath: spec.forProvider.allocatedStorage
           type: FromCompositeFieldPath
-EOF
-
-# Create a ClusterInstanceClass
-kubectl apply --wait=true -f -<<EOF
----
-apiVersion: services.apps.tanzu.vmware.com/v1alpha1
-kind: ClusterInstanceClass
-metadata:
-  name: rds-postgres
-spec:
-  description:
-    short: AWS RDS Postgresql database instances
-  pool:
-    kind: Secret
-    labelSelector:
-      matchLabels:
-        services.apps.tanzu.vmware.com/class: rds-postgres
-    fieldSelector: type=connection.crossplane.io/v1alpha1
 EOF
 
 # Grant RBAC permissions to the Services Toolkit to enable reading the secrets specified by the class
@@ -366,7 +360,7 @@ EOF
 aws rds describe-db-instances --region ${AWS_REGION} --profile ${AWS_PROFILE}
 
 # Wait for database to be ready for connections
-kubectl wait --for=condition=Ready=true postgresqlinstances.bindable.database.example.org ${AWS_RDS_INSTANCE_NAME} \
+kubectl wait --for=condition=Ready=true postgresqlinstances.bindable.database.example.org ${AWS_RDS_INSTANCE_NAME} -n ${SERVICE_INSTANCE_NAMESPACE} \
   --timeout=10m
 
 # Address a bug in Crossplane 1.7.2 onwards with the --enable-external-secret-stores feature gate enabled
@@ -376,37 +370,58 @@ kubectl wait --for=condition=Ready=true postgresqlinstances.bindable.database.ex
 kubectl create clusterrole crossplane-cleaner --verb=delete --resource=secrets
 kubectl create clusterrolebinding crossplane-cleaner --clusterrole=crossplane-cleaner --serviceaccount=${CROSSPLANE_NAMESPACE}:crossplane
 
-# Show available classes of service instances
-tanzu service classes list
+if [ "$DEPLOY_WORKLOAD" == "true" ]; then
 
-# Show claimable instances  belonging to the RDS PostgreSQL class
-tanzu services claimable list --class rds-postgres
+# Create a ClusterInstanceClass
+kubectl apply --wait=true -f -<<EOF
+---
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ClusterInstanceClass
+metadata:
+  name: rds-postgres
+spec:
+  description:
+    short: AWS RDS Postgresql database instances
+  pool:
+    kind: Secret
+    labelSelector:
+      matchLabels:
+        services.apps.tanzu.vmware.com/class: rds-postgres
+    fieldSelector: type=connection.crossplane.io/v1alpha1
+EOF
 
-# Create a claim
-tanzu service claim create rds-claim \
-  --resource-name ${AWS_RDS_INSTANCE_NAME} \
-  --resource-kind Secret \
-  --resource-api-version v1
+  # Show available classes of service instances
+  tanzu service classes list
 
-# Obtain the claim reference
-tanzu service claim list -o wide
+  # Show claimable instances  belonging to the RDS PostgreSQL class
+  tanzu services claimable list --class rds-postgres
 
-# Create an application workload that consumes the claimed RDS PostgreSQL database. In this example, --service-ref is set to the claim reference obtained earlier.
-tanzu apps workload create ${APP_NAME} \
-  --namespace ${WORKLOAD_NAMESPACE}
-  --git-repo https://github.com/sample-accelerators/spring-petclinic \
-  --git-branch main \
-  --git-tag tap-1.2 \
-  --type web \
-  --label app.kubernetes.io/part-of=spring-petclinic \
-  --annotation autoscaling.knative.dev/minScale=1 \
-  --env SPRING_PROFILES_ACTIVE=postgres \
-  --service-ref db=services.apps.tanzu.vmware.com/v1alpha1:ResourceClaim:rds-claim
+  # Create a claim
+  tanzu service claim create rds-claim \
+    --resource-name ${AWS_RDS_INSTANCE_NAME} \
+    --resource-kind Secret \
+    --resource-api-version v1
 
-set +x
+  # Obtain the claim reference
+  tanzu service claim list -o wide
 
-# Follow the build
-echo "❯ To check in on status of the deployment, execute: \n\ttanzu apps workloads tail ${APP_NAME} -n ${WORKLOAD_NAMESPACE} --since 10m --timestamp"
+  # Create an application workload that consumes the claimed RDS PostgreSQL database. In this example, --service-ref is set to the claim reference obtained earlier.
+  tanzu apps workload create ${APP_NAME} \
+    --namespace ${WORKLOAD_NAMESPACE}
+    --git-repo https://github.com/sample-accelerators/spring-petclinic \
+    --git-branch main \
+    --git-tag tap-1.2 \
+    --type web \
+    --label app.kubernetes.io/part-of=spring-petclinic \
+    --annotation autoscaling.knative.dev/minScale=1 \
+    --env SPRING_PROFILES_ACTIVE=postgres \
+    --service-ref db=services.apps.tanzu.vmware.com/v1alpha1:ResourceClaim:rds-claim
 
-# Learn how to engage with app once deployed
-echo "❯ To verify that the application has successfully deployed and is running, execute: \n\ttanzu apps workloads get ${APP_NAME} -n ${WORKLOAD_NAMESPACE}"
+  set +x
+
+  # Follow the build
+  echo "❯ To check in on status of the deployment, execute: \n\ttanzu apps workloads tail ${APP_NAME} -n ${WORKLOAD_NAMESPACE} --since 10m --timestamp"
+
+  # Learn how to engage with app once deployed
+  echo "❯ To verify that the application has successfully deployed and is running, execute: \n\ttanzu apps workloads get ${APP_NAME} -n ${WORKLOAD_NAMESPACE}"
+fi

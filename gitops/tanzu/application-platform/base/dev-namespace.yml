@@ -7,6 +7,7 @@ metadata:
   name: #@ data.values.tap.devNamespace
 #@ end
 ---
+#@ if ((data.values.tap.cluster.provider == "eks" or data.values.tap.cluster.provider == "tkg»aws") and (data.values.tap.credentials.registry.host).find(".dkr.ecr.") > -1) == False:
 apiVersion: secretgen.carvel.dev/v1alpha1
 kind: SecretImport
 metadata:
@@ -14,6 +15,7 @@ metadata:
   namespace: #@ data.values.tap.devNamespace
 spec:
   fromNamespace: #@ data.values.tap.namespace
+#@ end
 ---
 apiVersion: secretgen.carvel.dev/v1alpha1
 kind: SecretImport
@@ -23,21 +25,31 @@ metadata:
 spec:
   fromNamespace: #@ data.values.tap.namespace
 ---
-apiVersion: secretgen.carvel.dev/v1alpha1
-kind: SecretImport
+apiVersion: v1
+kind: Secret
 metadata:
   name: git-ssh
   namespace: #@ data.values.tap.devNamespace
-spec:
-  fromNamespace: #@ data.values.tap.namespace
+  annotations:
+    tekton.dev/git-0: #@ str(data.values.tap.credentials.git.host)
+type: kubernetes.io/ssh-auth
+data:
+  ssh-privatekey: #@ data.values.tap.credentials.git.ssh.privatekey
+  known_hosts: #@ data.values.tap.credentials.git.ssh.knownhosts
+  identity: #@ data.values.tap.credentials.git.ssh.privatekey
+  identity.pub: #@ data.values.tap.credentials.git.ssh.publickey
 ---
-apiVersion: secretgen.carvel.dev/v1alpha1
-kind: SecretImport
+apiVersion: v1
+kind: Secret
 metadata:
   name: git-http
   namespace: #@ data.values.tap.devNamespace
-spec:
-  fromNamespace: #@ data.values.tap.namespace
+  annotations:
+    tekton.dev/git-0: #@ "https://{}".format(data.values.tap.credentials.git.host)
+type: kubernetes.io/basic-auth
+stringData:
+  username: #@ data.values.tap.credentials.git.username
+  password: #@ data.values.tap.credentials.git.token
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -49,11 +61,15 @@ metadata:
     eks.amazonaws.com/role-arn: #@ data.values.tap.supply_chain.aws.iam_role_arn
   #@ end
 secrets:
+#@ if ((data.values.tap.cluster.provider == "eks" or data.values.tap.cluster.provider == "tkg»aws") and (data.values.tap.credentials.registry.host).find(".dkr.ecr.") > -1) == False:
   - name: container-registry-credentials
+#@ end
   - name: git-ssh
   - name: git-http
 imagePullSecrets:
+#@ if ((data.values.tap.cluster.provider == "eks" or data.values.tap.cluster.provider == "tkg»aws") and (data.values.tap.credentials.registry.host).find(".dkr.ecr.") > -1) == False:
   - name: container-registry-credentials
+#@ end
   - name: tanzu-network-credentials
 ---
 apiVersion: rbac.authorization.k8s.io/v1

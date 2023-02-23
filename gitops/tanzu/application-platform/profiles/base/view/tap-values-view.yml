@@ -86,10 +86,10 @@ tap_gui:
           X-Custom-Source: project-star
     #@ if data.values.tap.credentials.oidc.provider == "github" and data.values.tap.credentials.oidc.client_id != "" and data.values.tap.credentials.oidc.client_secret != "":
     auth:
-      environment: tap
+      environment: development
       providers:
         github:
-          tap:
+          development:
             clientId: #@ data.values.tap.credentials.oidc.client_id
             clientSecret: #@ data.values.tap.credentials.oidc.client_secret
       loginPage:
@@ -166,9 +166,17 @@ scanning:
     url: ""
 
 contour:
+  #@ if (data.values.tap.cluster.provider == "eks" or data.values.tap.cluster.provider == "tkg»aws"):
+  infrastructure_provider: aws
+  #@ end
   envoy:
     service:
+      #@ if (data.values.tap.cluster.provider == "eks" or data.values.tap.cluster.provider == "tkg»aws"):
+      aws:
+        LBType: nlb
+      #@ else:
       type: LoadBalancer
+      #@ end
 
 image_policy_webhook:
   allow_unmatched_images: true

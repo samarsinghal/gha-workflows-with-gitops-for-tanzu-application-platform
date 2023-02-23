@@ -30,8 +30,8 @@ chmod 600 /tmp/.kube/tap-*-config
 
 export KUBECONFIG=/tmp/.kube/tap-view-config
 
-$ CA_CERT=$(kubectl get secret -n metadata-store ingress-cert -o json | jq -r ".data.\"ca.crt\"")
-$ cat <<EOF > store_ca.yaml
+CA_CERT=$(kubectl get secret -n metadata-store ingress-cert -o json | jq -r ".data.\"ca.crt\"")
+cat <<EOF > store_ca.yaml
 ---
 apiVersion: v1
 kind: Secret
@@ -50,7 +50,8 @@ AUTH_TOKEN=$(kubectl get secrets metadata-store-read-write-client -n metadata-st
 
 export KUBECONFIG=/tmp/.kube/tap-build-config
 
-kubectl create ns ${SECRETS_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+kubectl create ns ${SECRETS_NAMESPACE} \
+  --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl apply -f store_ca.yaml
 
@@ -58,4 +59,5 @@ kubectl delete secret store-auth-token \
   --ignore-not-found
 
 kubectl create secret generic store-auth-token \
-  --from-literal=auth_token=$AUTH_TOKEN -n ${SECRETS_NAMESPACE}
+  --from-literal=auth_token=$AUTH_TOKEN -n ${SECRETS_NAMESPACE} \
+  --dry-run=client -o yaml | kubectl apply -f -

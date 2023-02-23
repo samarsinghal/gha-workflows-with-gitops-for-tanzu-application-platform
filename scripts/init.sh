@@ -8,32 +8,32 @@ main() {
   TZ=America/Los_Angeles
   ARGO_VERSION=3.4.4
   ARGOCD_VERSION=2.5.5
-  BOSH_VERSION=7.1.1
+  BOSH_VERSION=7.1.3
   CF_VERSION=8.5.0
   CREDHUB_VERSION=2.9.3
-  HELM_VERSION=3.11.0
+  HELM_VERSION=3.11.1
   HELMFILE_VERSION=0.150.0
   AWS_IAM_AUTHENTICATOR_VERSION=0.5.9
-  IMGPKG_VERSION=0.34.1
-  KAPP_VERSION=0.54.2
-  KBLD_VERSION=0.36.3
-  KCTRL_VERSION=0.44.1
+  IMGPKG_VERSION=0.36.0
+  KAPP_VERSION=0.54.3
+  KBLD_VERSION=0.36.4
+  KCTRL_VERSION=0.44.6
   KIND_VERSION=0.17.0
   KPACK_CLI_VERSION=0.9.0
   KWT_VERSION=0.0.6
   KUBECTL_VERSION=1.24.9
   KNATIVE_VERSION=1.8.1
   LEFTOVERS_VERSION=0.62.0
-  OCI_CLI_VERSION=3.22.2
+  OCI_CLI_VERSION=3.23.0
   OM_VERSION=7.5.0
   MKPCLI_VERSION=0.15.1
   PIVNET_VERSION=3.0.1
   TEKTONCD_VERSION=0.29.0
-  TERRAFORM_VERSION=1.3.7
+  TERRAFORM_VERSION=1.3.9
   TERRAFORM_DOCS_VERSION=0.16.0
   TMC_VERSION=0.5.2-5b1552f5
   VELERO_VERSION=1.9.5
-  VENDIR_VERSION=0.32.4
+  VENDIR_VERSION=0.32.5
   YTT_VERSION=0.44.3
 
   # Place ourselves in a temporary directory; don't clutter user.home directory w/ downloaded artifacts
@@ -43,11 +43,13 @@ main() {
   ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
   # Bring OS package management up-to-date
-  apt update -y
-  apt upgrade -y
+  sudo apt update -y
+  sudo apt upgrade -y
 
   # Install packages from APT
-  apt install build-essential curl default-jre git golang-go gpg graphviz gzip httpie libnss3-tools jq openssl pv python3-pip python3.8-dev python3.8-venv ruby-dev snapd sudo tmux tree tzdata unzip wget -y
+  echo "install build-essential start"
+  sudo apt install build-essential curl default-jre git golang-go gpg graphviz gzip httpie libnss3-tools jq openssl pv python3-pip ruby-dev snapd sudo tmux tree tzdata unzip wget -y
+  echo "install build-essential complete"
   apt install apt-transport-https ca-certificates gnupg lsb-release software-properties-common dirmngr vim -y
   add-apt-repository ppa:cncf-buildpacks/pack-cli
   apt install pack-cli -y

@@ -128,7 +128,7 @@ jobs:
     - name: Encode
       id: encode
       run: |
-        result="$(cat "scripts/install-package.sh" | base64 -w 0)"
+        result="$(cat scripts/install-package.sh | base64 -w 0)"
         echo "result=${result}" >> $GITHUB_OUTPUT
 
   encode-observe-clusters-script:
@@ -144,7 +144,7 @@ jobs:
     - name: Encode
       id: encode
       run: |
-        result="$(cat "scripts/observe-clusters.sh" | base64 -w 0)"
+        result="$(cat scripts/observe-clusters.sh | base64 -w 0)"
         echo "result=${result}" >> $GITHUB_OUTPUT
 
   install:
@@ -228,7 +228,6 @@ jobs:
         cat oc1.tpl oc2.tpl oc3.tpl > observed-tap-install-secrets.tpl
 
     - name: Render observed tap-install-secrets
-      id: rendered-cluster-config
       if: inputs.cluster-provider != 'gke' && steps.observed-clusters-config.outputs.hasResult == 'true'
       uses: chuhlomin/render-template@v1.6
       env:
@@ -257,7 +256,6 @@ jobs:
         result_path: ${{ env.GITOPS_DIR }}/.init/tap-install-secrets.yml
 
     - name: Render observed tap-install-secrets on GKE
-      id: rendered-cluster-config
       if: inputs.cluster-provider == 'gke' && steps.observed-clusters-config.outputs.hasResult == 'true'
       uses: chuhlomin/render-template@v1.6
       env:
@@ -300,10 +298,11 @@ jobs:
         template: ${{ env.GITOPS_DIR }}/.init/tap-install-config.tpl
         vars: |
           app_name: ${{ inputs.deployment-name }}-${{ inputs.active-profile }}
+          cluster_provider: ${{ inputs.cluster-provider }}
           domain: ${{ inputs.domain }}
           dev_namespace: ${{ inputs.dev-namespace }}
           backstage_catalog: ${{ inputs.backstage-catalog }}
-          ootb_supplychain_repo: ${{ inputs.ootb-supply-chain-repo }}
+          ootb_supply_chain_repo: ${{ inputs.ootb-supply-chain-repo }}
           build_service_repo: ${{ inputs.build-service-repo }}
           build_service_repo_aws_iam_role_arn: ${{ inputs.build-service-repo-aws-iam-role-arn }}
           workload_repo_aws_iam_role_arn: ${{ inputs.workload-repo-aws-iam-role-arn }}

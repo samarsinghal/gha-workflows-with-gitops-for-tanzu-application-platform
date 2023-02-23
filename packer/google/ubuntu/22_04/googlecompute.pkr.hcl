@@ -17,7 +17,7 @@ variable "image_name" {
 }
 
 variable "project_id" {
-  type    = string
+  type = string
   default = "pa-sasinghal"
 }
 

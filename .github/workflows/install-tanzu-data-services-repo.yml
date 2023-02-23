@@ -51,7 +51,7 @@ jobs:
     - name: Encode
       id: encode
       run: |
-          result="$(cat "scripts/install-package.sh" | base64 -w 0)"
+          result="$(cat scripts/install-package.sh | base64 -w 0)"
           echo "result=${result}" >> $GITHUB_OUTPUT
 
   install:
@@ -84,6 +84,14 @@ jobs:
           git_ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
           git_ssh_known_hosts: ${{ secrets.GIT_SSH_KNOWN_HOSTS }}
         result_path: ${{ env.GITOPS_DIR }}/.init/data-services-install-secrets.yml
+
+    - name: Render data-services-install
+      uses: chuhlomin/render-template@v1.6
+      with:
+        template: ${{ env.GITOPS_DIR }}/.init/data-services-install.tpl
+        vars: |
+          git_ref_name: ${{ github.ref_name }}
+        result_path: ${{ env.GITOPS_DIR }}/.init/data-services-install.yml
 
     - name: "Install Tanzu Data Services Repo on Azure"
       if: inputs.cluster-provider == 'aks'
