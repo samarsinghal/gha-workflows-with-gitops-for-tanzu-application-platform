@@ -119,7 +119,6 @@ jobs:
       control-plane-node-machine-type: ${{ github.event.inputs.control-plane-node-machine-type }}
       worker-node-machine-type: ${{ github.event.inputs.worker-node-machine-type }}
       region: ${{ github.event.inputs.region }}
-      availability-zones: ${{ github.event.inputs.availability-zones }}
       ssh-keypair-name: ${{ needs.create-keypair.outputs.ssh_key_name }}
       action: create
     secrets:
