@@ -117,7 +117,7 @@ jobs:
 
     - name: Authorize Google Cloud service account
       run: |
-        gcloud auth activate-service-account terraform@${{ secrets.GOOGLE_PROJECT_ID }}.iam.gserviceaccount.com --key-file=/tmp/gcloud/sa.json
+        gcloud auth activate-service-account --key-file=/tmp/gcloud/sa.json
 
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
