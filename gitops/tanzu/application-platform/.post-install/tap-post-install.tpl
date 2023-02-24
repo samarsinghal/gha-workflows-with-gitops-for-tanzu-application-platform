@@ -8,7 +8,7 @@ spec:
   syncPeriod: 1m
   fetch:
   - git:
-      url: git@github.com:pacphi/gha-workflows-with-gitops-for-tanzu-application-platform
+      url: git@github.com:samarsinghal/gha-workflows-with-gitops-for-tanzu-application-platform
       ref: origin/{{ .git_ref_name }}
       secretRef:
         name: git-ssh-for-carvel
